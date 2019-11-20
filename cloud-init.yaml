@@ -8,6 +8,126 @@ write_files:
         [ { rabbit, [
           { loopback_users, [ ] } ] }
          ].
+  - path: /etc/cwagentconfig/config.json
+    content: |
+      {
+        "agent": {
+          "metrics_collection_interval": 10,
+          "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+        },
+        "metrics": {
+          "metrics_collected": {
+            "cpu": {
+              "resources": [
+                "*"
+              ],
+              "measurement": [
+                {"name": "cpu_usage_idle", "rename": "CPU_USAGE_IDLE", "unit": "Percent"},
+                {"name": "cpu_usage_nice", "unit": "Percent"},
+                "cpu_usage_guest"
+              ],
+              "totalcpu": false,
+              "metrics_collection_interval": 10,
+              "append_dimensions": {}
+            },
+            "disk": {
+              "resources": [
+                "/",
+                "/tmp"
+              ],
+              "measurement": [
+                {"name": "free", "rename": "DISK_FREE", "unit": "Gigabytes"},
+                "total",
+                "used"
+              ],
+               "ignore_file_system_types": [
+                "sysfs", "devtmpfs"
+              ],
+              "metrics_collection_interval": 60,
+              "append_dimensions": {}
+            },
+            "diskio": {
+              "resources": [
+                "*"
+              ],
+              "measurement": [
+                "reads",
+                "writes",
+                "read_time",
+                "write_time",
+                "io_time"
+              ],
+              "metrics_collection_interval": 60
+            },
+            "swap": {
+              "measurement": [
+                "swap_used",
+                "swap_free",
+                "swap_used_percent"
+              ]
+            },
+            "mem": {
+              "measurement": [
+                "mem_used",
+                "mem_cached",
+                "mem_total"
+              ],
+              "metrics_collection_interval": 1
+            },
+            "net": {
+              "resources": [
+                "eth0"
+              ],
+              "measurement": [
+                "bytes_sent",
+                "bytes_recv",
+                "drop_in",
+                "drop_out"
+              ]
+            },
+            "netstat": {
+              "measurement": [
+                "tcp_established",
+                "tcp_syn_sent",
+                "tcp_close"
+              ],
+              "metrics_collection_interval": 60
+            },
+            "processes": {
+              "measurement": [
+                "running",
+                "sleeping",
+                "dead"
+              ]
+            }
+          },
+          "append_dimensions": {
+            "ImageId": "$${aws:ImageId}",
+            "InstanceId": "$${aws:InstanceId}",
+            "InstanceType": "$${aws:InstanceType}",
+            "AutoScalingGroupName": "$${aws:AutoScalingGroupName}"
+          },
+          "aggregation_dimensions" : [["ImageId"], ["InstanceId", "InstanceType"], ["d1"],[]],
+          "force_flush_interval" : 30
+        },
+        "logs": {
+          "logs_collected": {
+            "files": {
+              "collect_list": [
+                {
+                  "file_path": "/var/log/user-data.log",
+                  "log_group_name": "${cw_log_group}",
+                  "log_stream_name": "${cw_log_stream}-user-data.log",
+                  "timezone": "UTC"
+                }
+              ]
+            }
+          },
+          "log_stream_name": "${cw_log_stream}",
+          "force_flush_interval" : 15
+        }
+      }
+
   - path: /root/find_hosts.sh
     content: |
         #!/usr/bin/env bash
@@ -16,18 +136,18 @@ write_files:
 
         DNSES=$(aws ec2 describe-instances --filters "Name=tag:aws:autoscaling:groupName,Values=${asg_name}" "Name=instance-state-name,Values=running" | jq ".Reservations[].Instances[].PrivateDnsName" | xargs)
 
-        HOSTNAMES=()
         for dns in $DNSES; do
-            hostname=($${dns//./ })
-            if [ "$hostname" != "$HOSTNAME" ]; then
-              HOSTNAMES+=( $hostname )
-            fi
+          # pulling out just the first part of the name, eg: ip-10-2-1-82.ec2.internal -> ip-10-2-1-82
+          dns_subdomain=($${dns//./ })
+          if  [ "$dns" != "$HOSTNAME" ] && [  "$dns_subdomain" != "$HOSTNAME" ] ; then
+            echo $dns_subdomain
+          fi
         done
 
-        echo $HOSTNAMES
   - path: /root/bin/join_cluster.sh
     content: |
         #!/usr/bin/env sh
+        set -o xtrace
 
         HOSTNAMES=( $@ )
 
@@ -36,11 +156,11 @@ write_files:
           rabbitmqctl stop_app
 
           NEW_HOSTNAMES=()
-          for hostname in $HOSTNAMES; do
-            rabbitmqctl join_cluster rabbit@$hostname
+          for peerhostname in $HOSTNAMES; do
+            rabbitmqctl join_cluster rabbit@$peerhostname
             st=$?
             if [ $st -ne 0 ] && [ $st -ne 130 ]; then  # 130 is "already joined"
-              NEW_HOSTNAMES+=( $hostname )
+              NEW_HOSTNAMES+=( $peerhostname )
             fi
           done
 
@@ -65,13 +185,19 @@ write_files:
 
 runcmd:
   - yum update -y
-  - yum install -y docker jq
+  - yum install -y docker jq awslogs
+  # needed to adjust the default config to not send /var/log/messages/ to cw
+  - mv /etc/awslogs/awslogs.conf /etc/awslogs/awslogs.conf.with-varlogmessages
+  - head -n -7 /etc/awslogs/awslogs.conf.with-varlogmessages > /etc/awslogs/awslogs.conf
+  - systemctl start awslogsd
+  - sudo systemctl enable awslogsd.service
   - service docker start
   - chkconfig docker on
   - usermod -a -G docker ec2-user
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${cw_log_group} -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE='${secret_cookie}' -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1
+  - /root/find_hosts.sh
   - docker exec rabbitmq bash /tmp/bin/join_cluster.sh $(bash /root/find_hosts.sh)
   - sleep 1
   - bash /root/configure.sh

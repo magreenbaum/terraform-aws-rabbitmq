@@ -68,6 +68,7 @@ data "template_file" "cloud-init" {
     rabbitmq_image  = var.rabbitmq_image
     ecr_registry_id = var.ecr_registry_id
     cw_log_group    = aws_cloudwatch_log_group.log_group.name
+    cw_log_stream   = local.cluster_name
   }
 }
 
@@ -167,6 +168,7 @@ resource "aws_security_group" "rabbitmq_nodes" {
   }
 
   ingress {
+    description     = "management port"
     protocol        = "tcp"
     from_port       = 15672
     to_port         = 15672
