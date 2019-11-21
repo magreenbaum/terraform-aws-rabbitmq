@@ -11,7 +11,7 @@
 1. Creates `N` nodes in `M` subnets
 1. Creates Autoscaling Group and ELB to load balance nodes
 1. Makes sure nodes can talk to each other and create cluster
-1. Make sure new nodes always join the cluster
+1. Make sure new nodes attempt to join the cluster at startup
 1. Configures `/` vhost queues in High Available (Mirrored) mode with automatic synchronization (`"ha-mode":"all", "ha-sync-mode":"3"`)
 
 
@@ -44,3 +44,8 @@ it will update Autoscaling Group and add `2` nodes more. Dead simple.
 Node becomes unresponsive ? Autoscaling group and ELB Health Checks will automatically replace it with new one, without data loss.
 
 Note: The VPC must have `enableDnsHostnames` = `true` and `enableDnsSupport` = `true` for the private DNS names to be resolvable for the nodes to connect to each other.   
+
+
+## Debugging
+If you can SSH onto one of the nodes you can run: 
+`docker exec rabbitmq rabbitmqctl cluster_status` to see the cluster status of that node.
