@@ -144,7 +144,7 @@ resource "aws_security_group" "rabbitmq_elb" {
   }
 
   tags = {
-    Name = "rabbitmq ${var.name} ELB"
+    Name      = "rabbitmq ${var.name} ELB"
     Terraform = true
   }
 }
@@ -187,7 +187,7 @@ resource "aws_security_group" "rabbitmq_nodes" {
   }
 
   tags = {
-    Name = "rabbitmq ${var.name} nodes"
+    Name      = "rabbitmq ${var.name} nodes"
     Terraform = true
   }
 }
@@ -278,10 +278,11 @@ resource "aws_elb" "elb" {
     bucket        = var.access_log_bucket
     bucket_prefix = var.access_log_bucket_prefix
     interval      = var.access_log_interval
+    enabled       = var.access_logs_enabled
   }
 
   tags = {
-    Name = local.cluster_name
+    Name      = local.cluster_name
     Terraform = true
   }
 }
