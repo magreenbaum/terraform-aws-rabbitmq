@@ -66,3 +66,21 @@ variable "log_retention_in_days" {
   type    = string
   default = 365
 }
+variable "access_log_bucket" {
+  type        = string
+  default     = "bucketname"
+  description = "optional bucket name to use for access logs"
+}
+variable "access_log_bucket_prefix" {
+  type        = string
+  default     = ""
+  description = "optional prefix to use for access logs"
+}
+variable "access_log_interval" {
+  type    = string
+  default = 60
+}
+variable "access_logs_enabled" {
+  type    = bool
+  default = false
+}

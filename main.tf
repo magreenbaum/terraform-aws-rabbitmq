@@ -68,6 +68,7 @@ data "template_file" "cloud-init" {
     rabbitmq_image  = var.rabbitmq_image
     ecr_registry_id = var.ecr_registry_id
     cw_log_group    = aws_cloudwatch_log_group.log_group.name
+    cw_log_stream   = local.cluster_name
   }
 }
 
@@ -143,7 +144,8 @@ resource "aws_security_group" "rabbitmq_elb" {
   }
 
   tags = {
-    Name = "rabbitmq ${var.name} ELB"
+    Name      = "rabbitmq ${var.name} ELB"
+    Terraform = true
   }
 }
 
@@ -167,6 +169,7 @@ resource "aws_security_group" "rabbitmq_nodes" {
   }
 
   ingress {
+    description     = "management port"
     protocol        = "tcp"
     from_port       = 15672
     to_port         = 15672
@@ -184,7 +187,8 @@ resource "aws_security_group" "rabbitmq_nodes" {
   }
 
   tags = {
-    Name = "rabbitmq ${var.name} nodes"
+    Name      = "rabbitmq ${var.name} nodes"
+    Terraform = true
   }
 }
 
@@ -232,6 +236,12 @@ resource "aws_autoscaling_group" "rabbitmq" {
     value               = "enabled"
     propagate_at_launch = true
   }
+
+  tag {
+    key                 = "Terraform"
+    value               = true
+    propagate_at_launch = true
+  }
 }
 
 resource "aws_elb" "elb" {
@@ -264,8 +274,16 @@ resource "aws_elb" "elb" {
   internal        = true
   security_groups = flatten([aws_security_group.rabbitmq_elb.id, var.elb_additional_security_group_ids])
 
+  access_logs {
+    bucket        = var.access_log_bucket
+    bucket_prefix = var.access_log_bucket_prefix
+    interval      = var.access_log_interval
+    enabled       = var.access_logs_enabled
+  }
+
   tags = {
-    Name = local.cluster_name
+    Name      = local.cluster_name
+    Terraform = true
   }
 }
 

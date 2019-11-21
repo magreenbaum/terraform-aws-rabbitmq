@@ -8,6 +8,110 @@ write_files:
         [ { rabbit, [
           { loopback_users, [ ] } ] }
          ].
+  - path: /etc/sysconfig/docker
+    content: |
+      # The max number of open files for the daemon itself, and all
+      # running containers.  The default value of 1048576 mirrors the value
+      # used by the systemd service unit.
+      DAEMON_MAXFILES=1048576
+
+      # Additional startup options for the Docker daemon, for example:
+      # OPTIONS="--ip-forward=true --iptables=true"
+      # By default we limit the number of open files per container
+      OPTIONS="--default-ulimit nofile=1000000:1048576"
+
+      # How many seconds the sysvinit script waits for the pidfile to appear
+      # when starting the daemon.
+      DAEMON_PIDFILE_TIMEOUT=10
+  - path: /opt/aws/amazon-cloudwatch-agent/bin/config.json
+    content: |
+      {
+              "agent": {
+                      "metrics_collection_interval": 30,
+                      "run_as_user": "cwagent"
+              },
+              "logs": {
+                      "logs_collected": {
+                              "files": {
+                                      "collect_list": [
+                                              {
+                                                      "file_path": "/var/log/cloud-init.log",
+                                                      "log_group_name": "cloud-init.log",
+                                                      "log_stream_name": "{instance_id}/cloud-init.log"
+                                              },
+                                              {
+                                                      "file_path": "cloud-init-output.log",
+                                                      "log_group_name": "cloud-init-output.log",
+                                                      "log_stream_name": "{instance_id}/cloud-init-output.log"
+                                              }
+                                      ]
+                              }
+                      }
+              },
+              "metrics": {
+                      "append_dimensions": {
+                              "AutoScalingGroupName": "$${aws:AutoScalingGroupName}",
+                              "ImageId": "$${aws:ImageId}",
+                              "InstanceId": "$${aws:InstanceId}",
+                              "InstanceType": "$${aws:InstanceType}"
+                      },
+                      "metrics_collected": {
+                              "cpu": {
+                                      "measurement": [
+                                              "cpu_usage_idle",
+                                              "cpu_usage_iowait",
+                                              "cpu_usage_user",
+                                              "cpu_usage_system"
+                                      ],
+                                      "metrics_collection_interval": 30,
+                                      "totalcpu": false
+                              },
+                              "disk": {
+                                      "measurement": [
+                                              "used_percent",
+                                              "inodes_free"
+                                      ],
+                                      "metrics_collection_interval": 30,
+                                      "resources": [
+                                              "*"
+                                      ]
+                              },
+                              "diskio": {
+                                      "measurement": [
+                                              "io_time",
+                                              "write_bytes",
+                                              "read_bytes",
+                                              "writes",
+                                              "reads"
+                                      ],
+                                      "metrics_collection_interval": 30,
+                                      "resources": [
+                                              "*"
+                                      ]
+                              },
+                              "mem": {
+                                      "measurement": [
+                                              "mem_used_percent"
+                                      ],
+                                      "metrics_collection_interval": 30
+                              },
+                              "netstat": {
+                                      "measurement": [
+                                              "tcp_established",
+                                              "tcp_time_wait"
+                                      ],
+                                      "metrics_collection_interval": 30
+                              },
+                              "swap": {
+                                      "measurement": [
+                                              "swap_used_percent"
+                                      ],
+                                      "metrics_collection_interval": 30
+                              }
+                      }
+              }
+      }
+
   - path: /root/find_hosts.sh
     content: |
         #!/usr/bin/env bash
@@ -16,15 +120,14 @@ write_files:
 
         DNSES=$(aws ec2 describe-instances --filters "Name=tag:aws:autoscaling:groupName,Values=${asg_name}" "Name=instance-state-name,Values=running" | jq ".Reservations[].Instances[].PrivateDnsName" | xargs)
 
-        HOSTNAMES=()
         for dns in $DNSES; do
-            hostname=($${dns//./ })
-            if [ "$hostname" != "$HOSTNAME" ]; then
-              HOSTNAMES+=( $hostname )
-            fi
+          # pulling out just the first part of the name, eg: ip-10-2-1-82.ec2.internal -> ip-10-2-1-82
+          dns_subdomain=($${dns//./ })
+          if  [ "$dns" != "$HOSTNAME" ] && [  "$dns_subdomain" != "$HOSTNAME" ] ; then
+            echo $dns_subdomain
+          fi
         done
 
-        echo $HOSTNAMES
   - path: /root/bin/join_cluster.sh
     content: |
         #!/usr/bin/env sh
@@ -33,19 +136,22 @@ write_files:
 
         for run in {1..3}; do
           sleep $[ ( $RANDOM % 10 )  + 1 ]s
+          echo "stopping rabbit to try and join other nodes"
           rabbitmqctl stop_app
 
           NEW_HOSTNAMES=()
-          for hostname in $HOSTNAMES; do
-            rabbitmqctl join_cluster rabbit@$hostname
+          for peerhostname in $HOSTNAMES; do
+            echo "trying to join $${peerhostname}"
+            rabbitmqctl join_cluster rabbit@$peerhostname
             st=$?
             if [ $st -ne 0 ] && [ $st -ne 130 ]; then  # 130 is "already joined"
-              NEW_HOSTNAMES+=( $hostname )
+              NEW_HOSTNAMES+=( $peerhostname )
             fi
           done
 
           HOSTNAMES=( $${NEW_HOSTNAMES[@]} )
           rabbitmqctl start_app
+          echo "startting rabbit after trying to join other nodes"
 
           if [ $${#HOSTNAMES[@]} -eq 0 ]; then
             exit 0
@@ -66,12 +172,16 @@ write_files:
 runcmd:
   - yum update -y
   - yum install -y docker jq
+  - wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+  - sudo rpm -U ./amazon-cloudwatch-agent.rpm
+  - sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
   - service docker start
   - chkconfig docker on
   - usermod -a -G docker ec2-user
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${cw_log_group} -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE='${secret_cookie}' -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1
+  - bash /root/find_hosts.sh
   - docker exec rabbitmq bash /tmp/bin/join_cluster.sh $(bash /root/find_hosts.sh)
   - sleep 1
   - bash /root/configure.sh
