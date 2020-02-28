@@ -52,6 +52,7 @@ data "aws_iam_policy_document" "policy_doc" {
 resource "aws_cloudwatch_log_group" "log_group" {
   name              = var.name
   retention_in_days = var.log_retention_in_days
+  tags              = var.tags
 }
 
 data "template_file" "cloud-init" {
@@ -75,6 +76,7 @@ data "template_file" "cloud-init" {
 resource "aws_iam_role" "role" {
   name               = local.cluster_name
   assume_role_policy = data.aws_iam_policy_document.policy_doc.json
+  tags               = var.tags
 }
 
 data "aws_iam_policy_document" "policy_permissions_doc" {
@@ -143,10 +145,9 @@ resource "aws_security_group" "rabbitmq_elb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name      = "rabbitmq ${var.name} ELB"
-    Terraform = true
-  }
+  tags = merge(var.tags, {
+    Name = "rabbitmq ${var.name} ELB"
+  })
 }
 
 resource "aws_security_group" "rabbitmq_nodes" {
@@ -186,10 +187,9 @@ resource "aws_security_group" "rabbitmq_nodes" {
     ]
   }
 
-  tags = {
-    Name      = "rabbitmq ${var.name} nodes"
-    Terraform = true
-  }
+  tags = merge(var.tags, {
+    Name = "rabbitmq ${var.name} nodes"
+  })
 }
 
 resource "aws_launch_configuration" "rabbitmq" {
@@ -206,11 +206,20 @@ resource "aws_launch_configuration" "rabbitmq" {
     volume_size           = var.instance_volume_size
     iops                  = var.instance_volume_iops
     delete_on_termination = true
+    encrypted             = var.encrypted_ebs_instance_volume
   }
 
   lifecycle {
     create_before_destroy = true
   }
+}
+
+# the autoscaling group
+locals {
+  autoscaling_group_tags = merge(var.tags, {
+    MonitorRMQ = "enabled",
+    Name       = local.cluster_name
+  })
 }
 
 resource "aws_autoscaling_group" "rabbitmq" {
@@ -225,22 +234,14 @@ resource "aws_autoscaling_group" "rabbitmq" {
   load_balancers            = [aws_elb.elb.name]
   vpc_zone_identifier       = var.subnet_ids
 
-  tag {
-    key                 = "Name"
-    value               = local.cluster_name
-    propagate_at_launch = true
-  }
+  dynamic "tag" {
+    for_each = local.autoscaling_group_tags
 
-  tag {
-    key                 = "MonitorRMQ"
-    value               = "enabled"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Terraform"
-    value               = true
-    propagate_at_launch = true
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
   }
 }
 
@@ -281,9 +282,8 @@ resource "aws_elb" "elb" {
     enabled       = var.access_logs_enabled
   }
 
-  tags = {
-    Name      = local.cluster_name
-    Terraform = true
-  }
+  tags = merge(var.tags, {
+    Name = local.cluster_name
+  })
 }
 
