@@ -7,7 +7,7 @@ resource "aws_iam_role_policy" "iam_policy" {
 }
 
 resource "aws_iam_instance_profile" "iam_profile" {
-  name_prefix = "${local.cluster_name}-${data.aws_region.current.name}"
+  name_prefix = "${local.cluster_name}-${data.aws_region.current.name}-"
   role        = aws_iam_role.iam_role.name
 }
 
