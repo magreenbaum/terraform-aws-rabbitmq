@@ -73,6 +73,7 @@ data "template_file" "cloud-init" {
   }
 }
 
+# To be replaced
 resource "aws_iam_role" "role" {
   name               = local.cluster_name
   assume_role_policy = data.aws_iam_policy_document.policy_doc.json
@@ -121,6 +122,7 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
   }
 }
 
+# To be replaced
 resource "aws_iam_role_policy" "policy" {
   name = local.cluster_name
   role = aws_iam_role.role.id
@@ -128,6 +130,7 @@ resource "aws_iam_role_policy" "policy" {
   policy = data.aws_iam_policy_document.policy_permissions_doc.json
 }
 
+# To be replaced
 resource "aws_iam_instance_profile" "profile" {
   name_prefix = local.cluster_name
   role        = aws_iam_role.role.name
