@@ -197,7 +197,7 @@ resource "aws_security_group" "rabbitmq_nodes" {
 
 resource "aws_launch_configuration" "rabbitmq" {
   name_prefix          = local.cluster_name
-  image_id             = var.ami_id ? var.ami_id : data.aws_ami_ids.amazon-linux-2.ids[0]
+  image_id             = var.ami_id != "" ? var.ami_id : data.aws_ami_ids.amazon-linux-2.ids[0]
   instance_type        = var.instance_type
   key_name             = var.ssh_key_name
   security_groups      = flatten([aws_security_group.rabbitmq_nodes.id, var.nodes_additional_security_group_ids])
