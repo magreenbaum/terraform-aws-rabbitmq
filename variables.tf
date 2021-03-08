@@ -8,6 +8,11 @@ variable "name" {
   default = "main"
 }
 
+variable "ami_id" {
+  description = "The AMI ID to use for the ec2 instance"
+  default     = ""
+}
+
 variable "min_size" {
   description = "Minimum number of RabbitMQ nodes"
   default     = 2
