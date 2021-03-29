@@ -73,13 +73,6 @@ data "template_file" "cloud-init" {
   }
 }
 
-# To be replaced
-resource "aws_iam_role" "role" {
-  name               = local.cluster_name
-  assume_role_policy = data.aws_iam_policy_document.policy_doc.json
-  tags               = var.tags
-}
-
 data "aws_iam_policy_document" "policy_permissions_doc" {
   statement {
     effect = "Allow"
@@ -122,18 +115,22 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
   }
 }
 
-# To be replaced
-resource "aws_iam_role_policy" "policy" {
-  name = local.cluster_name
-  role = aws_iam_role.role.id
+resource "aws_iam_role_policy" "iam_policy" {
+  name = "${local.cluster_name}-${data.aws_region.current.name}"
+  role = aws_iam_role.iam_role.id
 
   policy = data.aws_iam_policy_document.policy_permissions_doc.json
 }
 
-# To be replaced
-resource "aws_iam_instance_profile" "profile" {
-  name_prefix = local.cluster_name
-  role        = aws_iam_role.role.name
+resource "aws_iam_instance_profile" "iam_profile" {
+  name_prefix = "${local.cluster_name}-${data.aws_region.current.name}-"
+  role        = aws_iam_role.iam_role.name
+}
+
+resource "aws_iam_role" "iam_role" {
+  name               = "${local.cluster_name}-${data.aws_region.current.name}"
+  assume_role_policy = data.aws_iam_policy_document.policy_doc.json
+  tags               = var.tags
 }
 
 resource "aws_security_group" "rabbitmq_elb" {
