@@ -92,8 +92,8 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
       "logs:PutLogEvents"
     ]
     resources = [
-      aws_cloudwatch_log_group.log_group.arn,
-      "${aws_cloudwatch_log_group.log_group.arn}:*"
+      "${aws_cloudwatch_log_group.log_group.arn}:*",
+      "${aws_cloudwatch_log_group.log_group.arn}:*:*"
     ]
   }
 
