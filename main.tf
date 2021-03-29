@@ -93,7 +93,7 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     ]
     resources = [
       aws_cloudwatch_log_group.log_group.arn,
-      "${aws_cloudwatch_log_group.log_group.arn}/*"
+      "${aws_cloudwatch_log_group.log_group.arn}:*"
     ]
   }
 
