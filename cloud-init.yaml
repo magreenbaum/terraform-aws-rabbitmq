@@ -177,14 +177,16 @@ write_files:
   - path: /root/configure_datadog.sh
     content: |
         #!/usr/bin/env bash
-        docker exec rabbitmq rabbitmqctl add_user datadog $(aws ssm get-parameter --name ${datadog_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        export DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        export DD_RMQ_PASS=$(aws ssm get-parameter --name ${datadog_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        docker exec rabbitmq rabbitmqctl add_user datadog $DD_RMQ_PASS
         docker exec rabbitmq rabbitmqctl set_user_tags datadog monitoring
         docker exec rabbitmq rabbitmqctl set_permissions -p / datadog "^aliveness-test$" "^amq\.default$" ".*"
         docker run -d --name dd-agent -v /var/run/docker.sock:/var/run/docker.sock:ro -v /proc/:/host/proc/:ro -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
         -e DD_ENV=${dd_env} -e DD_SITE=${dd_site}
-        -e DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value') \
+        -e DD_API_KEY=$DD_API_KEY \
         -l com.datadoghq.ad.check_names='rabbitmq' -l com.datadoghq.ad.init_configs='{}' \
-        -l com.datadoghq.ad.instances='rabbitmq_api_url":"%%host%%:15672/api/","username": datadog, "password": $(aws ssm get-parameter --name ${datadog_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')' \
+        -l com.datadoghq.ad.instances='rabbitmq_api_url":"%%host%%:15672/api/","username": datadog, "password": $DD_RMQ_PASS' \
         ${datadog_image}
 
 
@@ -204,3 +206,5 @@ runcmd:
   - docker exec rabbitmq bash /tmp/bin/join_cluster.sh $(bash /root/find_hosts.sh)
   - sleep 1
   - bash /root/configure.sh
+  - sleep 1
+  - bash /root/configure_datadog.sh
