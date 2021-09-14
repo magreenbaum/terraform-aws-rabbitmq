@@ -76,6 +76,8 @@ data "template_file" "cloud-init" {
     cw_log_group     = aws_cloudwatch_log_group.log_group.name
     cw_log_stream    = local.cluster_name
     dd_api_key       = aws_ssm_parameter.datadog_api_key.name
+    dd_env           = var.dd_env
+    dd_site          = var.dd_site
     datadog_password = aws_ssm_parameter.datadog_user_password.name
   }
 }

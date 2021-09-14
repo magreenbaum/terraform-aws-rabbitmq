@@ -105,7 +105,14 @@ variable "encrypted_ebs_instance_volume" {
   default = true
 }
 
+variable "dd_env" {
+  type = string
+}
+
+variable "dd_site" {
+  type = string
+}
+
 variable "kms_key_id" {
   type    = string
-  default = ""
 }
