@@ -64,18 +64,18 @@ data "template_file" "cloud-init" {
   template = file("${path.module}/cloud-init.yaml")
 
   vars = {
-    sync_node_count = var.max_size
-    asg_name        = local.cluster_name
-    region          = data.aws_region.current.name
-    admin_password  = random_password.admin_password.result
-    rabbit_password = random_password.rabbit_password.result
-    secret_cookie   = random_password.secret_cookie.result
-    message_timeout = 3 * 24 * 60 * 60 * 1000 # 3 days
-    rabbitmq_image  = var.rabbitmq_image
-    ecr_registry_id = var.ecr_registry_id
-    cw_log_group    = aws_cloudwatch_log_group.log_group.name
-    cw_log_stream   = local.cluster_name
-    dd_api_key      = aws_ssm_parameter.datadog_api_key.name
+    sync_node_count  = var.max_size
+    asg_name         = local.cluster_name
+    region           = data.aws_region.current.name
+    admin_password   = random_password.admin_password.result
+    rabbit_password  = random_password.rabbit_password.result
+    secret_cookie    = random_password.secret_cookie.result
+    message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
+    rabbitmq_image   = var.rabbitmq_image
+    ecr_registry_id  = var.ecr_registry_id
+    cw_log_group     = aws_cloudwatch_log_group.log_group.name
+    cw_log_stream    = local.cluster_name
+    dd_api_key       = aws_ssm_parameter.datadog_api_key.name
     datadog_password = aws_ssm_parameter.datadog_user_password.name
   }
 }
