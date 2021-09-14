@@ -177,7 +177,7 @@ write_files:
   - path: /root/configure_datadog.sh
     content: |
         #!/usr/bin/env bash
-        docker exec rabbitmq rabbitmqctl add_user datadog ${datadog_password}
+        docker exec rabbitmq rabbitmqctl add_user datadog $(aws ssm get-parameter --name ${datadog_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
         docker exec rabbitmq rabbitmqctl set_user_tags datadog monitoring
         docker exec rabbitmq rabbitmqctl set_permissions -p / datadog "^aliveness-test$" "^amq\.default$" ".*"
 

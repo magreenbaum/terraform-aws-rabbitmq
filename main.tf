@@ -38,6 +38,11 @@ resource "random_password" "secret_cookie" {
   special = false
 }
 
+resource "random_password" "datadog_password" {
+  length  = 64
+  special = false
+}
+
 data "aws_iam_policy_document" "policy_doc" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -71,6 +76,7 @@ data "template_file" "cloud-init" {
     cw_log_group    = aws_cloudwatch_log_group.log_group.name
     cw_log_stream   = local.cluster_name
     dd_api_key      = aws_ssm_parameter.datadog_api_key.name
+    datadog_password = aws_ssm_parameter.datadog_user_password.name
   }
 }
 
@@ -121,7 +127,8 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
       "ssm:GetParameter"
     ]
     resources = [
-      aws_ssm_parameter.datadog_api_key.arn
+      aws_ssm_parameter.datadog_api_key.arn,
+      aws_ssm_parameter.datadog_user_password.arn,
     ]
   }
 }
@@ -302,5 +309,12 @@ resource "aws_ssm_parameter" "datadog_api_key" {
   name   = "/${var.name}/DATADOG_API_KEY"
   type   = "SecureString"
   value  = "Add Datadog API Key Here"
+  key_id = var.kms_key_id
+}
+
+resource "aws_ssm_parameter" "datadog_user_password" {
+  name   = "/${var.name}/datadog_password"
+  type   = "SecureString"
+  value  = random_password.datadog_password.result
   key_id = var.kms_key_id
 }
