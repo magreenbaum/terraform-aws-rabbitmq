@@ -113,6 +113,10 @@ variable "dd_site" {
   type = string
 }
 
+variable "datadog_image" {
+  type = string
+}
+
 variable "kms_key_id" {
   type    = string
 }
