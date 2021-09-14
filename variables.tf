@@ -104,3 +104,8 @@ variable "encrypted_ebs_instance_volume" {
   type    = bool
   default = true
 }
+
+variable "kms_key_id" {
+  type    = string
+  default = ""
+}

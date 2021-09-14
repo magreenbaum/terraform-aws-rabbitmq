@@ -70,6 +70,7 @@ data "template_file" "cloud-init" {
     ecr_registry_id = var.ecr_registry_id
     cw_log_group    = aws_cloudwatch_log_group.log_group.name
     cw_log_stream   = local.cluster_name
+    dd_api_key      = aws_ssm_parameter.datadog_api_key.name
   }
 }
 
@@ -111,6 +112,16 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     ]
     resources = [
       "*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter"
+    ]
+    resources = [
+      aws_ssm_parameter.datadog_api_key.arn
     ]
   }
 }
@@ -287,3 +298,9 @@ resource "aws_elb" "elb" {
   })
 }
 
+resource "aws_ssm_parameter" "datadog_api_key" {
+  name   = "/${var.name}/DATADOG_API_KEY"
+  type   = "SecureString"
+  value  = "Add Datadog API Key Here"
+  key_id = var.kms_key_id
+}
