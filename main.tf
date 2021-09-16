@@ -78,8 +78,9 @@ data "template_file" "cloud-init" {
     dd_api_key       = aws_ssm_parameter.datadog_api_key.name
     dd_env           = var.dd_env
     dd_site          = var.dd_site
-    datadog_image    = var.datadog_image
-    datadog_password = aws_ssm_parameter.datadog_user_password.name
+    dd_image         = var.datadog_image
+    dd_password      = aws_ssm_parameter.datadog_user_password.name
+    app_name         = var.name
   }
 }
 
@@ -132,6 +133,16 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     resources = [
       aws_ssm_parameter.datadog_api_key.arn,
       aws_ssm_parameter.datadog_user_password.arn,
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt"
+    ]
+    resources = [
+      var.kms_key_arn
     ]
   }
 }
@@ -312,12 +323,16 @@ resource "aws_ssm_parameter" "datadog_api_key" {
   name   = "/${var.name}/DATADOG_API_KEY"
   type   = "SecureString"
   value  = "Add Datadog API Key Here"
-  key_id = var.kms_key_id
+  key_id = var.kms_key_arn
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_ssm_parameter" "datadog_user_password" {
   name   = "/${var.name}/datadog_password"
   type   = "SecureString"
   value  = random_password.datadog_password.result
-  key_id = var.kms_key_id
+  key_id = var.kms_key_arn
 }

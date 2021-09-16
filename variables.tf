@@ -117,6 +117,6 @@ variable "datadog_image" {
   type = string
 }
 
-variable "kms_key_id" {
+variable "kms_key_arn" {
   type    = string
 }

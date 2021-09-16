@@ -23,6 +23,19 @@ write_files:
       # How many seconds the sysvinit script waits for the pidfile to appear
       # when starting the daemon.
       DAEMON_PIDFILE_TIMEOUT=10
+  - path: /etc/systemd/system/datadog-agent.service
+    content: |
+      [Unit]
+      Description=Datadog Agent
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Restart=always
+      ExecStartPre=-/usr/bin/docker stop dd-agent
+      ExecStartPre=-/usr/bin/docker rm -f dd-agent
+      ExecStart=/bin/bash /root/run_datadog_agent.sh
+      ExecStop=/usr/bin/docker stop dd-agent
   - path: /opt/aws/amazon-cloudwatch-agent/bin/config.json
     content: |
       {
@@ -174,20 +187,84 @@ write_files:
         docker exec rabbitmq rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
         docker exec rabbitmq rabbitmqctl set_permissions -p / rabbit ".*" ".*" ".*"
         docker exec rabbitmq rabbitmqctl delete_user guest
-  - path: /root/configure_datadog.sh
+  - path: /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
+    content: |
+        ad_identifiers:
+          - rabbitmq-eng
+
+        init_config:
+
+        instances:
+          - rabbitmq_api_url: "http://%%env_IP%%:15672/api/"
+            username: "datadog"
+            password: "%%env_DD_RMQ_PASS%%"
+  - path: /root/datadog-agent/datadog.yaml
+    content: |
+        ####### Defaults
+        ## Provides autodetected defaults, for vanilla Docker environments,
+        ## please see datadog.yaml.example for all supported options
+
+        # Autodiscovery settings for vanilla Docker
+        listeners:
+          - name: docker
+        config_providers:
+          - name: docker
+            polling: true
+            poll_interval: 1s
+
+        apm_config:
+          apm_non_local_traffic: true
+
+        # Use java container support
+        jmx_use_container_support: true
+        #######
+
+        site: datadoghq.com
+
+        tags:
+          - application:${app_name}
+
+        env: ${dd_env}
+
+        apm_config:
+          enabled: false
+
+        # This setting value is a string
+        # See https://github.com/DataDog/datadog-agent/blob/main/pkg/config/config_template.yaml
+        process_config:
+          enabled: "true"
+
+        health_port: 5555
+
+        logs_enabled: true
+
+        logs_config:
+          container_collect_all: true
+  - path: /root/configure_datadog_user.sh
     content: |
         #!/usr/bin/env bash
-        export DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value')
-        export DD_RMQ_PASS=$(aws ssm get-parameter --name ${datadog_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        export DD_RMQ_PASS=$(aws ssm get-parameter --name ${dd_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
         docker exec rabbitmq rabbitmqctl add_user datadog $DD_RMQ_PASS
         docker exec rabbitmq rabbitmqctl set_user_tags datadog monitoring
         docker exec rabbitmq rabbitmqctl set_permissions -p / datadog "^aliveness-test$" "^amq\.default$" ".*"
-        docker run -d --name dd-agent -v /var/run/docker.sock:/var/run/docker.sock:ro -v /proc/:/host/proc/:ro -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
-        -e DD_ENV=${dd_env} -e DD_SITE=${dd_site}
+  - path: /root/run_datadog_agent.sh
+    content: |
+        #!/usr/bin/env bash
+        export DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        export DD_RMQ_PASS=$(aws ssm get-parameter --name ${dd_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        export IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+        docker run --name dd-agent \
+        -v /var/run/docker.sock:/var/run/docker.sock:ro \
+        -v /proc/:/host/proc/:ro \
+        -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro \
+        -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
+        -v /opt/datadog-agent/run:/opt/datadog-agent/run:rw \
+        -v /root/datadog-agent/datadog.yaml:/etc/datadog-agent/datadog.yaml:ro \
+        -v /root/datadog-agent/conf.d/rabbitmq.d/:/etc/datadog-agent/conf.d/rabbitmq.d:ro \
         -e DD_API_KEY=$DD_API_KEY \
-        -l com.datadoghq.ad.check_names='rabbitmq' -l com.datadoghq.ad.init_configs='{}' \
-        -l com.datadoghq.ad.instances='rabbitmq_api_url":"%%host%%:15672/api/","username": datadog, "password": $DD_RMQ_PASS' \
-        ${datadog_image}
+        -e IP=$IP \
+        -e DD_RMQ_PASS=$DD_RMQ_PASS \
+        ${dd_image}
 
 
 runcmd:
@@ -199,7 +276,9 @@ runcmd:
   - service docker start
   - chkconfig docker on
   - usermod -a -G docker ec2-user
+  - service datadog-agent start
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
+  - sleep 1
   - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${cw_log_group} -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE='${secret_cookie}' -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1
   - bash /root/find_hosts.sh
@@ -207,4 +286,4 @@ runcmd:
   - sleep 1
   - bash /root/configure.sh
   - sleep 1
-  - bash /root/configure_datadog.sh
+  - bash /root/configure_datadog_user.sh
