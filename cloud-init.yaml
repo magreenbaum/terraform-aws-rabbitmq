@@ -90,6 +90,9 @@ write_files:
   - path: /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
     permissions: 0600
     content: |
+        ad_identifiers:
+          - rabbitmq-eng
+      
         init_config:
 
         instances:
