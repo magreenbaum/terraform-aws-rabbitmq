@@ -67,9 +67,9 @@ data "template_file" "cloud-init" {
     sync_node_count  = var.max_size
     asg_name         = local.cluster_name
     region           = data.aws_region.current.name
-    admin_password   = random_password.admin_password.result
-    rabbit_password  = random_password.rabbit_password.result
-    secret_cookie    = random_password.secret_cookie.result
+    admin_password   = aws_ssm_parameter.rabbit_admin_password.name
+    rabbit_password  = aws_ssm_parameter.rabbit_password.name
+    secret_cookie    = aws_ssm_parameter.secret_cookie.name
     message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
     rabbitmq_image   = var.rabbitmq_image
     ecr_registry_id  = var.ecr_registry_id
@@ -133,6 +133,9 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     resources = [
       aws_ssm_parameter.datadog_api_key.arn,
       aws_ssm_parameter.datadog_user_password.arn,
+      aws_ssm_parameter.rabbit_admin_password.arn,
+      aws_ssm_parameter.rabbit_password.arn,
+      aws_ssm_parameter.secret_cookie.arn,
     ]
   }
 
@@ -335,4 +338,33 @@ resource "aws_ssm_parameter" "datadog_user_password" {
   type   = "SecureString"
   value  = random_password.datadog_password.result
   key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "rabbit_admin_password" {
+  name   = "/${var.name}/admin_password"
+  type   = "SecureString"
+  value  = random_password.admin_password.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "rabbit_password" {
+  name   = "/${var.name}/rabbit_password"
+  type   = "SecureString"
+  value  = random_password.rabbit_password.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "secret_cookie" {
+  name   = "/${var.name}/secret_cookie"
+  type   = "SecureString"
+  value  = random_password.secret_cookie.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
 }
