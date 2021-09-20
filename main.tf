@@ -334,7 +334,7 @@ resource "aws_ssm_parameter" "datadog_api_key" {
 }
 
 resource "aws_ssm_parameter" "datadog_user_password" {
-  name   = "/${var.name}/datadog_password"
+  name   = "/${var.name}/DATADOG_PASSWORD"
   type   = "SecureString"
   value  = random_password.datadog_password.result
   key_id = var.kms_key_arn
@@ -343,7 +343,7 @@ resource "aws_ssm_parameter" "datadog_user_password" {
 }
 
 resource "aws_ssm_parameter" "rabbit_admin_password" {
-  name   = "/${var.name}/admin_password"
+  name   = "/${var.name}/ADMIN_PASSWORD"
   type   = "SecureString"
   value  = random_password.admin_password.result
   key_id = var.kms_key_arn
@@ -352,7 +352,7 @@ resource "aws_ssm_parameter" "rabbit_admin_password" {
 }
 
 resource "aws_ssm_parameter" "rabbit_password" {
-  name   = "/${var.name}/rabbit_password"
+  name   = "/${var.name}/RABBIT_PASSWORD"
   type   = "SecureString"
   value  = random_password.rabbit_password.result
   key_id = var.kms_key_arn
@@ -361,7 +361,7 @@ resource "aws_ssm_parameter" "rabbit_password" {
 }
 
 resource "aws_ssm_parameter" "secret_cookie" {
-  name   = "/${var.name}/secret_cookie"
+  name   = "/${var.name}/SECRET_COOKIE"
   type   = "SecureString"
   value  = random_password.secret_cookie.result
   key_id = var.kms_key_arn

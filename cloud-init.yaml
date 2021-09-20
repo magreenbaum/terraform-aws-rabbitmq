@@ -92,23 +92,26 @@ write_files:
     content: |
         ad_identifiers:
           - rabbitmq-eng
-      
+
         init_config:
 
         instances:
-          - rabbitmq_api_url: "ENC[RMQ_API_URL]"
+          - rabbitmq_api_url: "http://replace_ip_address_here:15672/api/"
             username: "datadog"
-            password: "ENC[DD_RMQ_PASS]"
+            password: "ENC[DATADOG_PASSWORD]"
   - path: /root/datadog-agent/secrets.sh
     content: |
       #!/usr/bin/env bash
 
-      export DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region us-east-1 | jq -r '.Parameter.Value')
-      export IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
-      export DD_RMQ_PASS=$(aws ssm get-parameter --name ${dd_password} --with-decryption --region us-east-1 | jq -r '.Parameter.Value')
+      INPUT=$(</dev/stdin)
+      SECRETS=$(echo $INPUT | sed 's#\\\"#\"#g' | jq -r ".secrets[]")
 
-      json='{ "DD_API_KEY": {"value": "'$DD_API_KEY'", "error": null}, "RMQ_API_URL": {"value": "http://'$IP':15672/api/", "error": null}, "DD_RMQ_PASS": {"value": "'$DD_RMQ_PASS'", "error": null} }'
-      echo $json
+      for secret in ${SECRETS[@]}
+      do
+      arr+="${arr:+, }\"$secret\": {\"value\": \"$(aws ssm get-parameter --name /${app_name}/$secret  --with-decryption --region us-east-1 | jq -r '.Parameter.Value')\", \"error\": null}"
+      done
+
+      echo '{ '$arr' }'
   - path: /root/datadog-agent/datadog.yaml
     permissions: 0700
     content: |
@@ -116,7 +119,7 @@ write_files:
         ## Provides autodetected defaults, for vanilla Docker environments,
         ## please see datadog.yaml.example for all supported options
 
-        api_key: "ENC[DD_API_KEY]"
+        api_key: "ENC[DATADOG_API_KEY]"
         secret_backend_command: /etc/datadog-agent/secrets.sh
 
         # Autodiscovery settings for vanilla Docker
@@ -175,6 +178,7 @@ runcmd:
   - cp /root/datadog-agent/datadog.yaml /etc/datadog-agent/datadog.yaml && chown dd-agent /etc/datadog-agent/datadog.yaml
   - cp /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml && chown dd-agent /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - cp /root/datadog-agent/secrets.sh /etc/datadog-agent/secrets.sh && chown dd-agent /etc/datadog-agent/secrets.sh && chmod 0700 /etc/datadog-agent/secrets.sh
+  - sed -i "s/replace_ip_address_here/$(curl http://169.254.169.254/latest/meta-data/local-ipv4)/g" /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - systemctl start datadog-agent
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --restart on-failure:5 --hostname $HOSTNAME --log-driver=local --log-opt max-size=10m -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE=$(aws ssm get-parameter --name ${secret_cookie} --with-decryption --region ${region} | jq -r '.Parameter.Value') -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
