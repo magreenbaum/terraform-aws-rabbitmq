@@ -106,9 +106,9 @@ write_files:
       INPUT=$(</dev/stdin)
       SECRETS=$(echo $INPUT | sed 's#\\\"#\"#g' | jq -r ".secrets[]")
 
-      for secret in ${SECRETS[@]}
+      for secret in $${SECRETS[@]}
       do
-      arr+="${arr:+, }\"$secret\": {\"value\": \"$(aws ssm get-parameter --name /${app_name}/$secret  --with-decryption --region us-east-1 | jq -r '.Parameter.Value')\", \"error\": null}"
+      arr+="$${arr:+, }\"$secret\": {\"value\": \"$(aws ssm get-parameter --name /${app_name}/$secret  --with-decryption --region us-east-1 | jq -r '.Parameter.Value')\", \"error\": null}"
       done
 
       echo '{ '$arr' }'
