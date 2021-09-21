@@ -109,10 +109,10 @@ write_files:
 
       for secret in $${SECRETS[@]}
       do
-      arr+="$${arr:+, }\"$secret\": {\"value\": \"$(aws ssm get-parameter --name /${app_name}/$secret  --with-decryption --region us-east-1 | jq -r '.Parameter.Value')\", \"error\": null}"
+        json+="$${json:+, }\"$secret\": {\"value\": \"$(aws ssm get-parameter --name /${app_name}/$secret  --with-decryption --region us-east-1 | jq -r '.Parameter.Value')\", \"error\": null}"
       done
 
-      echo '{ '$arr' }'
+      echo '{ '$json' }'
   - path: /root/datadog-agent/datadog.yaml
     permissions: 0600
     content: |
