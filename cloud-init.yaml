@@ -184,7 +184,7 @@ write_files:
 runcmd:
   - yum update -y
   - yum install -y docker jq
-  - pip3 install boto3
+  - pip3 install boto3 --user
   - DD_AGENT_MAJOR_VERSION=7 DD_INSTALL_ONLY=true DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value') DD_SITE="${dd_site}" bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
   - systemctl start docker
   - chkconfig docker on
