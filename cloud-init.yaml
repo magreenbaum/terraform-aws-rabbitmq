@@ -99,7 +99,7 @@ write_files:
           - rabbitmq_api_url: "http://replace_ip_address_here:15672/api/"
             username: "datadog"
             password: "ENC[DATADOG_PASSWORD]"
-  - path: /root/datadog-agent/secrets.sh
+  - path: /root/datadog-agent/secrets.py
     permissions: 0600
     content: |
       #!/usr/bin/env python3
@@ -133,7 +133,7 @@ write_files:
         ## please see datadog.yaml.example for all supported options
 
         api_key: "ENC[DATADOG_API_KEY]"
-        secret_backend_command: /etc/datadog-agent/secrets.sh
+        secret_backend_command: /etc/datadog-agent/secrets.py
 
         # Autodiscovery settings for vanilla Docker
         listeners:
@@ -151,6 +151,8 @@ write_files:
 
         tags:
           - application:${app_name}
+          - env:${dd_env}
+          - version:${rabbitmq_version}
 
         env: ${dd_env}
 
@@ -184,7 +186,7 @@ write_files:
 runcmd:
   - yum update -y
   - yum install -y docker jq
-  - pip3 install boto3 --user
+  - pip3 install boto3
   - DD_AGENT_MAJOR_VERSION=7 DD_INSTALL_ONLY=true DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value') DD_SITE="${dd_site}" bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
   - systemctl start docker
   - chkconfig docker on
@@ -192,7 +194,7 @@ runcmd:
   - sed -i "s/replace_ip_address_here/$(curl http://169.254.169.254/latest/meta-data/local-ipv4)/g" /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - cp /root/datadog-agent/datadog.yaml /etc/datadog-agent/datadog.yaml && chown dd-agent /etc/datadog-agent/datadog.yaml
   - cp /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml && chown dd-agent /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
-  - cp /root/datadog-agent/secrets.sh /etc/datadog-agent/secrets.sh && chown dd-agent /etc/datadog-agent/secrets.sh && chmod 0700 /etc/datadog-agent/secrets.sh
+  - cp /root/datadog-agent/secrets.py /etc/datadog-agent/secrets.sh && chown dd-agent /etc/datadog-agent/secrets.py && chmod 0700 /etc/datadog-agent/secrets.py
   - systemctl start datadog-agent
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --restart on-failure:5 --hostname $HOSTNAME --log-driver=local --log-opt max-size=10m -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE=$(aws ssm get-parameter --name ${secret_cookie} --with-decryption --region ${region} | jq -r '.Parameter.Value') -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}

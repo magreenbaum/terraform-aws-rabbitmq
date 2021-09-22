@@ -72,6 +72,7 @@ data "template_file" "cloud-init" {
     secret_cookie    = aws_ssm_parameter.secret_cookie.name
     message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
     rabbitmq_image   = var.rabbitmq_image
+    rabbitmq_version = join(",", regex("^.+:(.+)$", var.rabbitmq_image))
     ecr_registry_id  = var.ecr_registry_id
     cw_log_group     = aws_cloudwatch_log_group.log_group.name
     cw_log_stream    = local.cluster_name
