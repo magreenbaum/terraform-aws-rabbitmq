@@ -79,7 +79,6 @@ data "template_file" "cloud-init" {
     dd_api_key       = aws_ssm_parameter.datadog_api_key.name
     dd_env           = var.dd_env
     dd_site          = var.dd_site
-    dd_image         = var.datadog_image
     dd_password      = aws_ssm_parameter.datadog_user_password.name
     app_name         = var.name
     region           = data.aws_region.current.name
