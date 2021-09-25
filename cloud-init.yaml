@@ -147,10 +147,10 @@ write_files:
         jmx_use_container_support: true
         #######
 
-        site: datadoghq.com
+        site: ${dd_site}
 
         tags:
-          - application:${app_name}
+          - service:${app_name}
           - env:${dd_env}
           - version:${rabbitmq_version}
 
@@ -188,14 +188,14 @@ runcmd:
   - yum install -y docker jq
   - pip3 install boto3
   - DD_AGENT_MAJOR_VERSION=7 DD_INSTALL_ONLY=true DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value') DD_SITE="${dd_site}" bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
-  - systemctl start docker
-  - chkconfig docker on
   - usermod -a -G docker dd-agent
   - sed -i "s/replace_ip_address_here/$(curl http://169.254.169.254/latest/meta-data/local-ipv4)/g" /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - cp /root/datadog-agent/datadog.yaml /etc/datadog-agent/datadog.yaml && chown dd-agent /etc/datadog-agent/datadog.yaml
   - cp /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml && chown dd-agent /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - cp /root/datadog-agent/secrets.py /etc/datadog-agent/secrets.py && chown dd-agent /etc/datadog-agent/secrets.py && chmod 0700 /etc/datadog-agent/secrets.py
   - systemctl start datadog-agent
+  - chkconfig docker on
+  - systemctl start docker
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=local --log-opt max-size=10m -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE=$(aws ssm get-parameter --name ${secret_cookie} --with-decryption --region ${region} | jq -r '.Parameter.Value') -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1

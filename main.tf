@@ -74,8 +74,6 @@ data "template_file" "cloud-init" {
     rabbitmq_image   = var.rabbitmq_image
     rabbitmq_version = join(",", regex("^.+:(.+)$", var.rabbitmq_image))
     ecr_registry_id  = var.ecr_registry_id
-    cw_log_group     = aws_cloudwatch_log_group.log_group.name
-    cw_log_stream    = local.cluster_name
     dd_api_key       = aws_ssm_parameter.datadog_api_key.name
     dd_env           = var.dd_env
     dd_site          = var.dd_site
