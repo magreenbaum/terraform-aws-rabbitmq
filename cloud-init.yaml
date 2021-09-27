@@ -193,9 +193,9 @@ runcmd:
   - cp /root/datadog-agent/datadog.yaml /etc/datadog-agent/datadog.yaml && chown dd-agent /etc/datadog-agent/datadog.yaml
   - cp /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml && chown dd-agent /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
   - cp /root/datadog-agent/secrets.py /etc/datadog-agent/secrets.py && chown dd-agent /etc/datadog-agent/secrets.py && chmod 0700 /etc/datadog-agent/secrets.py
-  - systemctl start datadog-agent
-  - chkconfig docker on
   - systemctl start docker
+  - usermod -a -G docker dd-agent
+  - systemctl start datadog-agent
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
   - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=local --log-opt max-size=10m -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE=$(aws ssm get-parameter --name ${secret_cookie} --with-decryption --region ${region} | jq -r '.Parameter.Value') -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1
