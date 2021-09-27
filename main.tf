@@ -38,6 +38,11 @@ resource "random_password" "secret_cookie" {
   special = false
 }
 
+resource "random_password" "datadog_password" {
+  length  = 64
+  special = false
+}
+
 data "aws_iam_policy_document" "policy_doc" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -59,17 +64,22 @@ data "template_file" "cloud-init" {
   template = file("${path.module}/cloud-init.yaml")
 
   vars = {
-    sync_node_count = var.max_size
-    asg_name        = local.cluster_name
-    region          = data.aws_region.current.name
-    admin_password  = random_password.admin_password.result
-    rabbit_password = random_password.rabbit_password.result
-    secret_cookie   = random_password.secret_cookie.result
-    message_timeout = 3 * 24 * 60 * 60 * 1000 # 3 days
-    rabbitmq_image  = var.rabbitmq_image
-    ecr_registry_id = var.ecr_registry_id
-    cw_log_group    = aws_cloudwatch_log_group.log_group.name
-    cw_log_stream   = local.cluster_name
+    sync_node_count  = var.max_size
+    asg_name         = local.cluster_name
+    region           = data.aws_region.current.name
+    admin_password   = aws_ssm_parameter.rabbit_admin_password.name
+    rabbit_password  = aws_ssm_parameter.rabbit_password.name
+    secret_cookie    = aws_ssm_parameter.secret_cookie.name
+    message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
+    rabbitmq_image   = var.rabbitmq_image
+    rabbitmq_version = join(",", regex("^.+:(.+)$", var.rabbitmq_image))
+    ecr_registry_id  = var.ecr_registry_id
+    dd_api_key       = aws_ssm_parameter.datadog_api_key.name
+    dd_env           = var.dd_env
+    dd_site          = var.dd_site
+    dd_password      = aws_ssm_parameter.datadog_user_password.name
+    app_name         = var.name
+    region           = data.aws_region.current.name
   }
 }
 
@@ -111,6 +121,30 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     ]
     resources = [
       "*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter"
+    ]
+    resources = [
+      aws_ssm_parameter.datadog_api_key.arn,
+      aws_ssm_parameter.datadog_user_password.arn,
+      aws_ssm_parameter.rabbit_admin_password.arn,
+      aws_ssm_parameter.rabbit_password.arn,
+      aws_ssm_parameter.secret_cookie.arn,
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt"
+    ]
+    resources = [
+      var.kms_key_arn
     ]
   }
 }
@@ -287,3 +321,49 @@ resource "aws_elb" "elb" {
   })
 }
 
+resource "aws_ssm_parameter" "datadog_api_key" {
+  name   = "/${var.name}/DATADOG_API_KEY"
+  type   = "SecureString"
+  value  = "Add Datadog API Key Here"
+  key_id = var.kms_key_arn
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "datadog_user_password" {
+  name   = "/${var.name}/DATADOG_PASSWORD"
+  type   = "SecureString"
+  value  = random_password.datadog_password.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "rabbit_admin_password" {
+  name   = "/${var.name}/ADMIN_PASSWORD"
+  type   = "SecureString"
+  value  = random_password.admin_password.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "rabbit_password" {
+  name   = "/${var.name}/RABBIT_PASSWORD"
+  type   = "SecureString"
+  value  = random_password.rabbit_password.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}
+
+resource "aws_ssm_parameter" "secret_cookie" {
+  name   = "/${var.name}/SECRET_COOKIE"
+  type   = "SecureString"
+  value  = random_password.secret_cookie.result
+  key_id = var.kms_key_arn
+
+  tags = var.tags
+}

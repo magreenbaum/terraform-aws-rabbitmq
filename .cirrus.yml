@@ -1,0 +1,24 @@
+container:
+  image: smartrent/terraform-ci:0.15.5
+  cpu: 1
+
+base: &base
+  timeout_in: 30m
+
+format_task:
+  <<: *base
+  format_script:
+    - terraform fmt -check -recursive
+
+tflint_task:
+  <<: *base
+  tflint_script:
+    - tflint
+
+validate_task:
+  <<: *base
+  env:
+    AWS_DEFAULT_REGION: us-east-1
+  validate_script:
+    - terraform init -backend=false
+    - terraform validate

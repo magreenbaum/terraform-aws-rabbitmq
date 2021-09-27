@@ -1,10 +1,5 @@
 # Dead simple Terraform configuration for creating RabbitMQ cluster on AWS.
 
-| Branch | Build status                                                                                                                                                      |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| master | [![Build Status](https://travis-ci.org/ulamlabs/terraform-aws-rabbitmq.svg?branch=master)](https://travis-ci.org/ulamlabs/terraform-aws-rabbitmq) |
-
-
 ## What it does ?
 
 1. Uses [official](https://hub.docker.com/_/rabbitmq/) RabbitMQ docker image.
@@ -13,6 +8,7 @@
 1. Makes sure nodes can talk to each other and create cluster
 1. Make sure new nodes attempt to join the cluster at startup
 1. Configures `/` vhost queues in High Available (Mirrored) mode with automatic synchronization (`"ha-mode":"all", "ha-sync-mode":"3"`)
+1. Installs and configures Datadog Agent to gather metrics and logs for RabbitMQ
 
 
 <p align="center">
@@ -24,15 +20,19 @@
 Copy and paste into your Terraform configuration:
 ```
 module "rabbitmq" {
-  source                            = "ulamlabs/rabbitmq/aws"
-  version                           = "2.0.1"
-  vpc_id                            = "${var.vpc_id}"
-  ssh_key_name                      = "${var.ssh_key_name}"
-  subnet_ids                        = "${var.subnet_ids}"
-  elb_additional_security_group_ids = ["var.cluster_security_group_id"]
+  source                            = "smartrent/rabbitmq/aws"
+  vpc_id                            = var.vpc_id
+  ssh_key_name                      = var.ssh_key_name
+  subnet_ids                        = var.subnet_ids
+  elb_additional_security_group_ids = [var.cluster_security_group_id]
   min_size                          = "3"
   max_size                          = "3"
   desired_size                      = "3"
+  dd_env                            = var.env_name
+  dd_site                           = var.datadog_site
+  kms_key_arn                       = var.kms_key_id
+  ecr_registry_id                   = var.ecr_registry_id
+  rabbitmq_image                    = var.rabbitmq_image
 }
 ```
 

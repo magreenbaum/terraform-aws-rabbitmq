@@ -23,94 +23,6 @@ write_files:
       # How many seconds the sysvinit script waits for the pidfile to appear
       # when starting the daemon.
       DAEMON_PIDFILE_TIMEOUT=10
-  - path: /opt/aws/amazon-cloudwatch-agent/bin/config.json
-    content: |
-      {
-              "agent": {
-                      "metrics_collection_interval": 30,
-                      "run_as_user": "cwagent"
-              },
-              "logs": {
-                      "logs_collected": {
-                              "files": {
-                                      "collect_list": [
-                                              {
-                                                      "file_path": "/var/log/cloud-init.log",
-                                                      "log_group_name": "cloud-init.log",
-                                                      "log_stream_name": "{instance_id}/cloud-init.log"
-                                              },
-                                              {
-                                                      "file_path": "cloud-init-output.log",
-                                                      "log_group_name": "cloud-init-output.log",
-                                                      "log_stream_name": "{instance_id}/cloud-init-output.log"
-                                              }
-                                      ]
-                              }
-                      }
-              },
-              "metrics": {
-                      "append_dimensions": {
-                              "AutoScalingGroupName": "$${aws:AutoScalingGroupName}",
-                              "ImageId": "$${aws:ImageId}",
-                              "InstanceId": "$${aws:InstanceId}",
-                              "InstanceType": "$${aws:InstanceType}"
-                      },
-                      "metrics_collected": {
-                              "cpu": {
-                                      "measurement": [
-                                              "cpu_usage_idle",
-                                              "cpu_usage_iowait",
-                                              "cpu_usage_user",
-                                              "cpu_usage_system"
-                                      ],
-                                      "metrics_collection_interval": 30,
-                                      "totalcpu": false
-                              },
-                              "disk": {
-                                      "measurement": [
-                                              "used_percent",
-                                              "inodes_free"
-                                      ],
-                                      "metrics_collection_interval": 30,
-                                      "resources": [
-                                              "*"
-                                      ]
-                              },
-                              "diskio": {
-                                      "measurement": [
-                                              "io_time",
-                                              "write_bytes",
-                                              "read_bytes",
-                                              "writes",
-                                              "reads"
-                                      ],
-                                      "metrics_collection_interval": 30,
-                                      "resources": [
-                                              "*"
-                                      ]
-                              },
-                              "mem": {
-                                      "measurement": [
-                                              "mem_used_percent"
-                                      ],
-                                      "metrics_collection_interval": 30
-                              },
-                              "netstat": {
-                                      "measurement": [
-                                              "tcp_established",
-                                              "tcp_time_wait"
-                                      ],
-                                      "metrics_collection_interval": 30
-                              },
-                              "swap": {
-                                      "measurement": [
-                                              "swap_used_percent"
-                                      ],
-                                      "metrics_collection_interval": 30
-                              }
-                      }
-              }
-      }
 
   - path: /root/forget_hosts.sh
     content: |
@@ -164,30 +76,132 @@ write_files:
           fi
         done
   - path: /root/configure.sh
+    permissions: 0600
     content: |
         #!/usr/bin/env bash
-        docker exec rabbitmq rabbitmqctl add_user admin ${admin_password}
+        docker exec rabbitmq rabbitmqctl add_user admin $(aws ssm get-parameter --name ${admin_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
         docker exec rabbitmq rabbitmqctl set_user_tags admin administrator
-        docker exec rabbitmq rabbitmqctl add_user rabbit ${rabbit_password}
+        docker exec rabbitmq rabbitmqctl add_user rabbit $(aws ssm get-parameter --name ${rabbit_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
         docker exec rabbitmq rabbitmqctl add_vhost /
         docker exec rabbitmq rabbitmqctl set_policy -p / ha-three "^" '{"ha-mode":"exactly", "ha-params":${sync_node_count}, "ha-sync-mode":"automatic", "message-ttl":${message_timeout}}'
         docker exec rabbitmq rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
         docker exec rabbitmq rabbitmqctl set_permissions -p / rabbit ".*" ".*" ".*"
         docker exec rabbitmq rabbitmqctl delete_user guest
+  - path: /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
+    permissions: 0600
+    content: |
+        ad_identifiers:
+          - rabbitmq-eng
+
+        init_config:
+
+        instances:
+          - rabbitmq_api_url: "http://replace_ip_address_here:15672/api/"
+            username: "datadog"
+            password: "ENC[DATADOG_PASSWORD]"
+  - path: /root/datadog-agent/secrets.py
+    permissions: 0600
+    content: |
+      #!/usr/bin/env python3
+      import sys
+      import json
+      import boto3
+
+      data = json.load(sys.stdin)
+
+      region = "${region}"
+
+      null = None
+      secrets = {}
+
+      def ssm_params(secret):
+          ssm_client = boto3.client('ssm', region_name=region)
+          parameter = ssm_client.get_parameter(Name='/${app_name}/{}'.format(secret), WithDecryption=True)
+          return(parameter['Parameter']['Value'])
+
+      for value in data["secrets"]:
+          secrets[value] = {
+              "value": ssm_params(value), "error": null
+          }
+
+      print(json.dumps(secrets))
+  - path: /root/datadog-agent/datadog.yaml
+    permissions: 0600
+    content: |
+        ####### Defaults
+        ## Provides autodetected defaults, for vanilla Docker environments,
+        ## please see datadog.yaml.example for all supported options
+
+        api_key: "ENC[DATADOG_API_KEY]"
+        secret_backend_command: /etc/datadog-agent/secrets.py
+
+        # Autodiscovery settings for vanilla Docker
+        listeners:
+          - name: docker
+        config_providers:
+          - name: docker
+            polling: true
+            poll_interval: 1s
+
+        # Use java container support
+        jmx_use_container_support: true
+        #######
+
+        site: ${dd_site}
+
+        tags:
+          - service:${app_name}
+          - env:${dd_env}
+          - version:${rabbitmq_version}
+
+        env: ${dd_env}
+
+        apm_config:
+          enabled: false
+
+        # This setting value is a string
+        # See https://github.com/DataDog/datadog-agent/blob/main/pkg/config/config_template.yaml
+        process_config:
+          enabled: "true"
+
+        health_port: 5555
+
+        logs_enabled: true
+
+        logs_config:
+          container_collect_all: true
+          logs_enabled: true
+          use_http: true
+          use_compression: true
+          compression_level: 6
+          open_files_limit: 200
+  - path: /root/configure_datadog_user.sh
+    permissions: 0600
+    content: |
+        #!/usr/bin/env bash
+        docker exec rabbitmq rabbitmqctl add_user datadog $(aws ssm get-parameter --name ${dd_password} --with-decryption --region ${region} | jq -r '.Parameter.Value')
+        docker exec rabbitmq rabbitmqctl set_user_tags datadog monitoring
+        docker exec rabbitmq rabbitmqctl set_permissions -p / datadog "^aliveness-test$" "^amq\.default$" ".*"
 
 runcmd:
   - yum update -y
   - yum install -y docker jq
-  - wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
-  - sudo rpm -U ./amazon-cloudwatch-agent.rpm
-  - sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
-  - service docker start
+  - pip3 install boto3
+  - DD_AGENT_MAJOR_VERSION=7 DD_INSTALL_ONLY=true DD_API_KEY=$(aws ssm get-parameter --name ${dd_api_key} --with-decryption --region ${region} | jq -r '.Parameter.Value') DD_SITE="${dd_site}" bash -c "$(curl -L https://s3.amazonaws.com/dd-agent/scripts/install_script.sh)"
+  - systemctl start docker
   - chkconfig docker on
-  - usermod -a -G docker ec2-user
+  - usermod -a -G docker dd-agent
+  - sed -i "s/replace_ip_address_here/$(curl http://169.254.169.254/latest/meta-data/local-ipv4)/g" /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml
+  - cp /root/datadog-agent/datadog.yaml /etc/datadog-agent/datadog.yaml && chown dd-agent /etc/datadog-agent/datadog.yaml
+  - cp /root/datadog-agent/conf.d/rabbitmq.d/conf.yaml /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml && chown dd-agent /etc/datadog-agent/conf.d/rabbitmq.d/conf.yaml
+  - cp /root/datadog-agent/secrets.py /etc/datadog-agent/secrets.py && chown dd-agent /etc/datadog-agent/secrets.py && chmod 0700 /etc/datadog-agent/secrets.py
+  - systemctl start datadog-agent
   - $(aws ecr get-login --no-include-email --region ${region} --registry-ids ${ecr_registry_id})
-  - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=awslogs --log-opt awslogs-region=${region} --log-opt awslogs-group=${cw_log_group} -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE='${secret_cookie}' -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
+  - docker run -d --name rabbitmq --hostname $HOSTNAME --log-driver=local --log-opt max-size=10m -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 -e RABBITMQ_ERLANG_COOKIE=$(aws ssm get-parameter --name ${secret_cookie} --with-decryption --region ${region} | jq -r '.Parameter.Value') -v /root/data:/var/lib/rabbitmq -v /root/conf/:/etc/rabbitmq -v /root/bin:/tmp/bin ${rabbitmq_image}
   - sleep 1
   - bash /root/find_hosts.sh
   - docker exec rabbitmq bash /tmp/bin/join_cluster.sh $(bash /root/find_hosts.sh)
   - sleep 1
   - bash /root/configure.sh
+  - sleep 1
+  - bash /root/configure_datadog_user.sh
