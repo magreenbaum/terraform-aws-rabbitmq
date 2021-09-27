@@ -20,5 +20,5 @@ validate_task:
   env:
     AWS_DEFAULT_REGION: us-east-1
   validate_script:
-    - terraform init backend=false
+    - terraform init -backend=false
     - terraform validate
