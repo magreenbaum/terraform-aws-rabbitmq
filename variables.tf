@@ -61,7 +61,7 @@ variable "instance_type" {
 
 variable "instance_volume_type" {
   type        = string
-  description = ""
+  description = "The instance volume type to use (standard, gp2, gp3, st1, sc1, io1)"
   default     = "standard"
 }
 
