@@ -147,13 +147,13 @@ variable "kms_key_arn" {
 variable "health_check_grace_period" {
   type        = number
   description = "The ASG health check grace period"
-  default     = 300
+  default     = 400
 }
 
 variable "health_check_interval" {
   type        = number
   description = "The ELB health check interval in seconds"
-  default     = 45
+  default     = 30
 }
 
 variable "unhealthy_threshold" {
