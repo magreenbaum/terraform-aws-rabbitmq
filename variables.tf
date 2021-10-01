@@ -88,7 +88,7 @@ variable "ecr_registry_id" {
 }
 
 variable "log_retention_in_days" {
-  type        = string
+  type        = number
   description = "The length of time to retain cloudwatch logs in days"
   default     = 365
 }
@@ -106,7 +106,7 @@ variable "access_log_bucket_prefix" {
 }
 
 variable "access_log_interval" {
-  type        = string
+  type        = number
   description = "How often for the ELB to publish access logs in minutes"
   default     = 60
 }
