@@ -261,7 +261,7 @@ resource "aws_autoscaling_group" "rabbitmq" {
   min_size                  = var.min_size
   desired_capacity          = var.desired_size
   max_size                  = var.max_size
-  health_check_grace_period = 300
+  health_check_grace_period = var.health_check_grace_period
   health_check_type         = "ELB"
   force_delete              = true
   launch_configuration      = aws_launch_configuration.rabbitmq.name
@@ -297,10 +297,10 @@ resource "aws_elb" "elb" {
   }
 
   health_check {
-    interval            = 30
-    unhealthy_threshold = 10
-    healthy_threshold   = 2
-    timeout             = 3
+    interval            = var.health_check_interval
+    unhealthy_threshold = var.unhealthy_threshold
+    healthy_threshold   = var.healthy_threshold
+    timeout             = var.timeout
     target              = "TCP:5672"
   }
 
