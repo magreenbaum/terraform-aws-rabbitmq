@@ -16,7 +16,3 @@ output "secret_cookie" {
   value     = random_password.secret_cookie.result
   sensitive = true
 }
-
-output "cloudwatch_log_group_name" {
-  value = aws_cloudwatch_log_group.log_group.name
-}

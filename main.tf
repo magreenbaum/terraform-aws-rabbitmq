@@ -1,7 +1,3 @@
-data "aws_vpc" "vpc" {
-  id = var.vpc_id
-}
-
 data "aws_region" "current" {
 }
 
@@ -54,12 +50,6 @@ data "aws_iam_policy_document" "policy_doc" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "log_group" {
-  name              = var.name
-  retention_in_days = var.log_retention_in_days
-  tags              = var.tags
-}
-
 data "template_file" "cloud-init" {
   template = file("${path.module}/cloud-init.yaml")
 
@@ -92,18 +82,6 @@ data "aws_iam_policy_document" "policy_permissions_doc" {
     ]
     resources = [
       "*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-    resources = [
-      "${aws_cloudwatch_log_group.log_group.arn}:*",
-      "${aws_cloudwatch_log_group.log_group.arn}:*:*"
     ]
   }
 
@@ -330,6 +308,7 @@ resource "aws_ssm_parameter" "datadog_api_key" {
   lifecycle {
     ignore_changes = [value]
   }
+  tags = var.tags
 }
 
 resource "aws_ssm_parameter" "datadog_user_password" {
