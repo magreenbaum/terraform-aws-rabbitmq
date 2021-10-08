@@ -87,12 +87,6 @@ variable "ecr_registry_id" {
   description = "The ECR registry ID"
 }
 
-variable "log_retention_in_days" {
-  type        = number
-  description = "The length of time to retain cloudwatch logs in days"
-  default     = 365
-}
-
 variable "access_log_bucket" {
   type        = string
   description = "optional bucket name to use for access logs"
