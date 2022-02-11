@@ -189,7 +189,7 @@ resource "aws_launch_configuration" "rabbitmq" {
   security_groups      = flatten([aws_security_group.rabbitmq_nodes.id, var.nodes_additional_security_group_ids])
   iam_instance_profile = aws_iam_instance_profile.iam_profile.id
   user_data = templatefile(
-    file("${path.module}/cloud-init.yaml"),
+    "${path.module}/cloud-init.yaml",
     {
       sync_node_count  = var.max_size
       asg_name         = local.cluster_name
