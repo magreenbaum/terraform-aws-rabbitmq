@@ -50,29 +50,6 @@ data "aws_iam_policy_document" "policy_doc" {
   }
 }
 
-data "template_file" "cloud-init" {
-  template = file("${path.module}/cloud-init.yaml")
-
-  vars = {
-    sync_node_count  = var.max_size
-    asg_name         = local.cluster_name
-    region           = data.aws_region.current.name
-    admin_password   = aws_ssm_parameter.rabbit_admin_password.name
-    rabbit_password  = aws_ssm_parameter.rabbit_password.name
-    secret_cookie    = aws_ssm_parameter.secret_cookie.name
-    message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
-    rabbitmq_image   = var.rabbitmq_image
-    rabbitmq_version = join(",", regex("^.+:(.+)$", var.rabbitmq_image))
-    ecr_registry_id  = var.ecr_registry_id
-    dd_api_key       = aws_ssm_parameter.datadog_api_key.name
-    dd_env           = var.dd_env
-    dd_site          = var.dd_site
-    dd_password      = aws_ssm_parameter.datadog_user_password.name
-    app_name         = var.name
-    region           = data.aws_region.current.name
-  }
-}
-
 data "aws_iam_policy_document" "policy_permissions_doc" {
   statement {
     effect = "Allow"
@@ -211,7 +188,26 @@ resource "aws_launch_configuration" "rabbitmq" {
   key_name             = var.ssh_key_name
   security_groups      = flatten([aws_security_group.rabbitmq_nodes.id, var.nodes_additional_security_group_ids])
   iam_instance_profile = aws_iam_instance_profile.iam_profile.id
-  user_data            = data.template_file.cloud-init.rendered
+  user_data = templatefile(
+    "${path.module}/cloud-init.yaml",
+    {
+      sync_node_count  = var.max_size
+      asg_name         = local.cluster_name
+      region           = data.aws_region.current.name
+      admin_password   = aws_ssm_parameter.rabbit_admin_password.name
+      rabbit_password  = aws_ssm_parameter.rabbit_password.name
+      secret_cookie    = aws_ssm_parameter.secret_cookie.name
+      message_timeout  = 3 * 24 * 60 * 60 * 1000 # 3 days
+      rabbitmq_image   = var.rabbitmq_image
+      rabbitmq_version = join(",", regex("^.+:(.+)$", var.rabbitmq_image))
+      ecr_registry_id  = var.ecr_registry_id
+      dd_api_key       = aws_ssm_parameter.datadog_api_key.name
+      dd_env           = var.dd_env
+      dd_site          = var.dd_site
+      dd_password      = aws_ssm_parameter.datadog_user_password.name
+      app_name         = var.name
+      region           = data.aws_region.current.name
+  })
 
   root_block_device {
     volume_type           = var.instance_volume_type
