@@ -114,7 +114,7 @@ resource "aws_iam_role_policy" "iam_policy" {
 resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   count      = var.aws_inspector_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  role       = aws_iam_role.iam_role.arn
+  role       = aws_iam_role.iam_role.name
 }
 
 resource "aws_iam_instance_profile" "iam_profile" {
