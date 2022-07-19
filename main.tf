@@ -111,6 +111,12 @@ resource "aws_iam_role_policy" "iam_policy" {
   policy = data.aws_iam_policy_document.policy_permissions_doc.json
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
+  count      = var.aws_inspector_enabled ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.iam_role.arn
+}
+
 resource "aws_iam_instance_profile" "iam_profile" {
   name_prefix = "${local.cluster_name}-${data.aws_region.current.name}-"
   role        = aws_iam_role.iam_role.name

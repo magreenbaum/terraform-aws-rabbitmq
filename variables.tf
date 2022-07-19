@@ -167,3 +167,9 @@ variable "timeout" {
   description = "The ELB health check length of time before timeout in seconds"
   default     = 3
 }
+
+variable "aws_inspector_enabled" {
+  type        = bool
+  description = "Whether or not the ec2 instances in this cluster should be scanned by AWS Inspector"
+  default     = false
+}
