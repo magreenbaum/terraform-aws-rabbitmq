@@ -168,8 +168,8 @@ variable "timeout" {
   default     = 3
 }
 
-variable "aws_inspector_enabled" {
+variable "aws_session_manager_enabled" {
   type        = bool
-  description = "Whether or not the ec2 instances in this cluster should be scanned by AWS Inspector"
+  description = "Whether or not the ec2 instances in this cluster should allow session manager permissions"
   default     = false
 }

@@ -79,6 +79,7 @@ No modules.
 | [aws_autoscaling_group.rabbitmq](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/autoscaling_group) | resource |
 | [aws_elb.elb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elb) | resource |
 | [aws_iam_instance_profile.iam_profile](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile) | resource |
+| [aws_iam_policy.ssm_managed_instances](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_role.iam_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.iam_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy_attachment.ssm_managed_instance_core](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
@@ -97,6 +98,7 @@ No modules.
 | [aws_ami_ids.amazon-linux-2](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami_ids) | data source |
 | [aws_iam_policy_document.policy_doc](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.policy_permissions_doc](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.ssm_managed_instances](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
@@ -108,7 +110,7 @@ No modules.
 | <a name="input_access_log_interval"></a> [access\_log\_interval](#input\_access\_log\_interval) | How often for the ELB to publish access logs in minutes | `number` | `60` | no |
 | <a name="input_access_logs_enabled"></a> [access\_logs\_enabled](#input\_access\_logs\_enabled) | Whether or not to enable access logging on the ELB | `bool` | `false` | no |
 | <a name="input_ami_id"></a> [ami\_id](#input\_ami\_id) | The AMI ID to use for the ec2 instance | `string` | `""` | no |
-| <a name="input_aws_inspector_enabled"></a> [aws\_inspector\_enabled](#input\_aws\_inspector\_enabled) | Whether or not the ec2 instances in this cluster should be scanned by AWS Inspector | `bool` | `false` | no |
+| <a name="input_aws_session_manager_enabled"></a> [aws\_session\_manager\_enabled](#input\_aws\_session\_manager\_enabled) | Whether or not the ec2 instances in this cluster should allow session manager permissions | `bool` | `false` | no |
 | <a name="input_dd_env"></a> [dd\_env](#input\_dd\_env) | The environment the app is running in | `string` | n/a | yes |
 | <a name="input_dd_site"></a> [dd\_site](#input\_dd\_site) | The Datadog site url | `string` | n/a | yes |
 | <a name="input_desired_size"></a> [desired\_size](#input\_desired\_size) | Desired number of RabbitMQ nodes | `number` | `2` | no |
