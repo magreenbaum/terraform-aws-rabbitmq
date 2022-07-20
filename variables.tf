@@ -167,3 +167,9 @@ variable "timeout" {
   description = "The ELB health check length of time before timeout in seconds"
   default     = 3
 }
+
+variable "aws_session_manager_enabled" {
+  type        = bool
+  description = "Whether or not the ec2 instances in this cluster should allow session manager permissions"
+  default     = false
+}
