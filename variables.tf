@@ -173,3 +173,27 @@ variable "aws_session_manager_enabled" {
   description = "Whether or not the ec2 instances in this cluster should allow session manager permissions"
   default     = false
 }
+
+variable "session_manager_s3_logging" {
+  type        = bool
+  description = "Whether to send session manager logs to s3"
+  default     = false
+}
+
+variable "session_manager_kms_key_arn" {
+  type        = string
+  description = "The kms key arn to use for session manager session encryption"
+  default     = ""
+}
+
+variable "session_manager_s3_logging_bucket_arn" {
+  type        = string
+  description = "The s3 bucket arn to send session manager logs to is sending to s3 bucket"
+  default     = ""
+}
+
+variable "session_manager_cloudwatch_log_group_arn" {
+  type        = string
+  description = "The cloudwatch log group arn to send session manager logs to if sending to cloudwatch logs"
+  default     = ""
+}
