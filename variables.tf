@@ -173,3 +173,15 @@ variable "aws_session_manager_enabled" {
   description = "Whether or not the ec2 instances in this cluster should allow session manager permissions"
   default     = false
 }
+
+variable "session_manager_kms_encryption_enabled" {
+  type        = bool
+  description = "Whether to enable session manager kms encryption to protect session data"
+  default     = false
+}
+
+variable "session_manager_kms_key_arn" {
+  type        = string
+  description = "The kms key arn to use for session manager session encryption"
+  default     = ""
+}
