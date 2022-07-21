@@ -174,26 +174,14 @@ variable "aws_session_manager_enabled" {
   default     = false
 }
 
-variable "session_manager_s3_logging" {
+variable "session_manager_kms_encryption_enabled" {
   type        = bool
-  description = "Whether to send session manager logs to s3"
+  description = "Whether to enable session manager kms encryption to protect session data"
   default     = false
 }
 
 variable "session_manager_kms_key_arn" {
   type        = string
   description = "The kms key arn to use for session manager session encryption"
-  default     = ""
-}
-
-variable "session_manager_s3_logging_bucket_arn" {
-  type        = string
-  description = "The s3 bucket arn to send session manager logs to is sending to s3 bucket"
-  default     = ""
-}
-
-variable "session_manager_cloudwatch_log_group_arn" {
-  type        = string
-  description = "The cloudwatch log group arn to send session manager logs to if sending to cloudwatch logs"
   default     = ""
 }

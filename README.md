@@ -130,10 +130,8 @@ No modules.
 | <a name="input_name"></a> [name](#input\_name) | The name of the RabbitMQ cluster | `string` | `"main"` | no |
 | <a name="input_nodes_additional_security_group_ids"></a> [nodes\_additional\_security\_group\_ids](#input\_nodes\_additional\_security\_group\_ids) | List of additional node security group ids | `list(string)` | `[]` | no |
 | <a name="input_rabbitmq_image"></a> [rabbitmq\_image](#input\_rabbitmq\_image) | The Rabbitmq docker image | `string` | n/a | yes |
-| <a name="input_session_manager_cloudwatch_log_group_arn"></a> [session\_manager\_cloudwatch\_log\_group\_arn](#input\_session\_manager\_cloudwatch\_log\_group\_arn) | The cloudwatch log group arn to send session manager logs to if sending to cloudwatch logs | `string` | `""` | no |
+| <a name="input_session_manager_kms_encryption_enabled"></a> [session\_manager\_kms\_encryption\_enabled](#input\_session\_manager\_kms\_encryption\_enabled) | Whether to enable session manager kms encryption to protect session data | `bool` | `false` | no |
 | <a name="input_session_manager_kms_key_arn"></a> [session\_manager\_kms\_key\_arn](#input\_session\_manager\_kms\_key\_arn) | The kms key arn to use for session manager session encryption | `string` | `""` | no |
-| <a name="input_session_manager_s3_logging"></a> [session\_manager\_s3\_logging](#input\_session\_manager\_s3\_logging) | Whether to send session manager logs to s3 | `bool` | `false` | no |
-| <a name="input_session_manager_s3_logging_bucket_arn"></a> [session\_manager\_s3\_logging\_bucket\_arn](#input\_session\_manager\_s3\_logging\_bucket\_arn) | The s3 bucket arn to send session manager logs to is sending to s3 bucket | `string` | `""` | no |
 | <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | The ssh key to provide the instance to use for ssh login | `string` | n/a | yes |
 | <a name="input_subnet_ids"></a> [subnet\_ids](#input\_subnet\_ids) | Subnets for RabbitMQ nodes | `list(string)` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | Optional additional Tags to add onto resources this module creates | `map(string)` | `{}` | no |

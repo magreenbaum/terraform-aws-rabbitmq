@@ -57,29 +57,7 @@ data "aws_iam_policy_document" "ssm_managed_instances" {
     resources = ["*"]
   }
   dynamic "statement" {
-    for_each = var.session_manager_s3_logging ? [1] : []
-    content {
-      effect = "Allow"
-      actions = [
-        "s3:PutObject"
-      ]
-      resources = [
-        local.s3_bucket_arn
-      ]
-    }
-  }
-  dynamic "statement" {
-    for_each = var.session_manager_s3_logging ? [1] : []
-    content {
-      effect = "Allow"
-      actions = [
-        "s3:GetEncryptionConfiguration"
-      ]
-      resources = ["*"]
-    }
-  }
-  dynamic "statement" {
-    for_each = length(var.session_manager_kms_key_arn) > 0 ? [1] : []
+    for_each = var.session_manager_kms_encryption_enabled ? [1] : []
     content {
       effect = "Allow"
       actions = [
@@ -87,33 +65,6 @@ data "aws_iam_policy_document" "ssm_managed_instances" {
       ]
       resources = [
         var.session_manager_kms_key_arn
-      ]
-    }
-  }
-  dynamic "statement" {
-    for_each = length(var.session_manager_cloudwatch_log_group_arn) > 0 || var.session_manager_s3_logging ? [1] : []
-    content {
-      effect = "Allow"
-      actions = [
-        "kms:GenerateDataKey"
-      ]
-      resources = [
-        var.session_manager_kms_key_arn
-      ]
-    }
-  }
-  dynamic "statement" {
-    for_each = length(var.session_manager_cloudwatch_log_group_arn) > 0 ? [1] : []
-    content {
-      effect = "Allow"
-      actions = [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams"
-      ]
-      resources = [
-        "*"
       ]
     }
   }
