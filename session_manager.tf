@@ -1,6 +1,3 @@
-locals {
-  s3_bucket_arn = var.session_manager_s3_logging_bucket_arn != "" ? var.session_manager_s3_logging_bucket_arn : "arn:aws:s3:::${var.access_log_bucket}"
-}
 resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   count      = var.aws_session_manager_enabled ? 1 : 0
   policy_arn = aws_iam_policy.ssm_managed_instances[count.index].arn
