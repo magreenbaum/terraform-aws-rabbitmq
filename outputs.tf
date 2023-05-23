@@ -16,3 +16,8 @@ output "secret_cookie" {
   value     = random_password.secret_cookie.result
   sensitive = true
 }
+
+output "amqp_url" {
+  value     = "amqp://rabbit:${random_password.rabbit_password.result}@${aws_elb.elb.dns_name}"
+  sensitive = true
+}
