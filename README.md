@@ -144,6 +144,7 @@ No modules.
 | Name | Description |
 |------|-------------|
 | <a name="output_admin_password"></a> [admin\_password](#output\_admin\_password) | n/a |
+| <a name="output_amqp_url"></a> [amqp\_url](#output\_amqp\_url) | n/a |
 | <a name="output_rabbit_password"></a> [rabbit\_password](#output\_rabbit\_password) | n/a |
 | <a name="output_rabbitmq_elb_dns"></a> [rabbitmq\_elb\_dns](#output\_rabbitmq\_elb\_dns) | n/a |
 | <a name="output_secret_cookie"></a> [secret\_cookie](#output\_secret\_cookie) | n/a |
