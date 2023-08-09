@@ -5,21 +5,30 @@ container:
 base: &base
   timeout_in: 30m
 
-format_task:
+task:
   <<: *base
+  name: terraform format
   format_script:
     - terraform fmt -check -recursive
 
-tflint_task:
+task:
   <<: *base
-  tflint_script:
-    - tflint --init
-    - tflint
-
-validate_task:
-  <<: *base
-  env:
-    AWS_DEFAULT_REGION: us-east-1
+  name: terraform validate
   validate_script:
-    - terraform init -backend=false
+    - terraform init -input=false -backend=false
     - terraform validate
+
+task:
+  <<: *base
+  name: tflint
+  tflint_script:
+    - terraform init -input=false -backend=false
+    - tflint --init --config .tflint.hcl
+    - tflint --module --config .tflint.hcl
+
+task:
+  <<: *base
+  name: tfsec
+  tfsec_script:
+    - terraform init -input=false -backend=false
+    - tfsec

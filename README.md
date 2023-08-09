@@ -1,4 +1,4 @@
-# Dead simple Terraform configuration for creating RabbitMQ cluster on AWS.
+# Dead simple Terraform configuration for creating RabbitMQ cluster on AWS
 
 ## What it does ?
 
@@ -10,15 +10,13 @@
 1. Configures `/` vhost queues in High Available (Mirrored) mode with automatic synchronization (`"ha-mode":"all", "ha-sync-mode":"3"`)
 1. Installs and configures Datadog Agent to gather metrics and logs for RabbitMQ
 
-
-<p align="center">
-<img src=".github/chart2.png" width="600">
-</p>
-
+<p align="center"><img src=".github/chart2.png" width="600"></p>
 
 ## How to use it ?
+
 Copy and paste into your Terraform configuration:
-```
+
+```hcl
 module "rabbitmq" {
   source                            = "smartrent/rabbitmq/aws"
   vpc_id                            = var.vpc_id
@@ -43,11 +41,11 @@ it will update Autoscaling Group and add `2` nodes more. Dead simple.
 
 Node becomes unresponsive ? Autoscaling group and ELB Health Checks will automatically replace it with new one, without data loss.
 
-Note: The VPC must have `enableDnsHostnames` = `true` and `enableDnsSupport` = `true` for the private DNS names to be resolvable for the nodes to connect to each other.   
-
+Note: The VPC must have `enableDnsHostnames` = `true` and `enableDnsSupport` = `true` for the private DNS names to be resolvable for the nodes to connect to each other.
 
 ## Debugging
-If you can SSH onto one of the nodes you can run: 
+
+If you can SSH onto one of the nodes you can run:
 `docker exec rabbitmq rabbitmqctl cluster_status` to see the cluster status of that node.
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 README.md updated successfully

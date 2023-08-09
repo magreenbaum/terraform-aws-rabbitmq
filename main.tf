@@ -1,22 +1,45 @@
-data "aws_region" "current" {
+locals {
+  cluster_name = var.name
 }
 
-data "aws_ami_ids" "amazon-linux-2" {
-  owners = ["amazon"]
+
+data "aws_region" "current" {}
+
+data "aws_ami" "amazon_linux_2_latest" {
+  owners      = ["amazon"]
+  most_recent = true
 
   filter {
-    name   = "owner-alias"
-    values = ["amazon"]
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["arm64"]
+  }
+
+  filter {
+    name   = "block-device-mapping.volume-type"
+    values = ["gp2"] # at time of writing gp3 was not available
   }
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["amzn2-ami-kernel-5.*"]
   }
 }
 
-locals {
-  cluster_name = var.name
+data "aws_ami" "amazon_linux_2" {
+  owners             = ["amazon"]
+  most_recent        = true
+  include_deprecated = true
+
+  filter {
+    name = "image-id"
+    #bootstrap with latest if ami is not provided
+    values = [var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux_2_latest.image_id]
+  }
 }
 
 resource "random_password" "admin_password" {
@@ -128,10 +151,11 @@ resource "aws_security_group" "rabbitmq_elb" {
   description = "Security Group for the rabbitmq elb"
 
   egress {
+    description = "for the rabbitmq elb"
     protocol    = "-1"
     from_port   = 0
     to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr
   }
 
   tags = merge(var.tags, {
@@ -145,13 +169,15 @@ resource "aws_security_group" "rabbitmq_nodes" {
   description = "Security Group for the rabbitmq nodes"
 
   ingress {
-    protocol  = -1
-    from_port = 0
-    to_port   = 0
-    self      = true
+    description = "for the rabbitmq nodes"
+    protocol    = -1
+    from_port   = 0
+    to_port     = 0
+    self        = true
   }
 
   ingress {
+    description     = "for the rabbitmq nodes"
     protocol        = "tcp"
     from_port       = 5672
     to_port         = 5672
@@ -167,13 +193,12 @@ resource "aws_security_group" "rabbitmq_nodes" {
   }
 
   egress {
-    protocol  = "-1"
-    from_port = 0
-    to_port   = 0
+    description = "for the rabbitmq nodes"
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
 
-    cidr_blocks = [
-      "0.0.0.0/0",
-    ]
+    cidr_blocks = ["0.0.0.0/0", ] #tfsec:ignore:aws-vpc-no-public-egress-sgr
   }
 
   tags = merge(var.tags, {
@@ -181,14 +206,16 @@ resource "aws_security_group" "rabbitmq_nodes" {
   })
 }
 
-resource "aws_launch_configuration" "rabbitmq" {
-  name_prefix          = local.cluster_name
-  image_id             = var.ami_id != "" ? var.ami_id : data.aws_ami_ids.amazon-linux-2.ids[0]
-  instance_type        = var.instance_type
-  key_name             = var.ssh_key_name
-  security_groups      = flatten([aws_security_group.rabbitmq_nodes.id, var.nodes_additional_security_group_ids])
-  iam_instance_profile = aws_iam_instance_profile.iam_profile.id
-  user_data = templatefile(
+resource "aws_launch_template" "rabbitmq" {
+  name_prefix   = local.cluster_name
+  image_id      = data.aws_ami.amazon_linux_2.image_id
+  instance_type = var.instance_type
+  key_name      = var.ssh_key_name
+  vpc_security_group_ids = flatten([
+    aws_security_group.rabbitmq_nodes.id, var.nodes_additional_security_group_ids,
+  ])
+
+  user_data = base64encode(templatefile(
     "${path.module}/cloud-init.yaml",
     {
       sync_node_count  = var.max_size
@@ -207,14 +234,25 @@ resource "aws_launch_configuration" "rabbitmq" {
       dd_password      = aws_ssm_parameter.datadog_user_password.name
       app_name         = var.name
       region           = data.aws_region.current.name
-  })
+  }))
 
-  root_block_device {
-    volume_type           = var.instance_volume_type
-    volume_size           = var.instance_volume_size
-    iops                  = var.instance_volume_iops
-    delete_on_termination = true
-    encrypted             = var.encrypted_ebs_instance_volume
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.iam_profile.arn
+  }
+
+  block_device_mappings {
+    device_name = data.aws_ami.amazon_linux_2.root_device_name
+    ebs {
+      volume_type           = var.instance_volume_type
+      volume_size           = var.instance_volume_size
+      iops                  = var.instance_volume_iops
+      delete_on_termination = true
+      encrypted             = var.encrypted_ebs_instance_volume
+    }
   }
 
   lifecycle {
@@ -238,9 +276,13 @@ resource "aws_autoscaling_group" "rabbitmq" {
   health_check_grace_period = var.health_check_grace_period
   health_check_type         = "ELB"
   force_delete              = true
-  launch_configuration      = aws_launch_configuration.rabbitmq.name
   load_balancers            = [aws_elb.elb.name]
   vpc_zone_identifier       = var.subnet_ids
+
+  launch_template {
+    id      = aws_launch_template.rabbitmq.id
+    version = aws_launch_template.rabbitmq.latest_version
+  }
 
   dynamic "tag" {
     for_each = local.autoscaling_group_tags

@@ -6,6 +6,6 @@ rule "terraform_unused_declarations" {
 
 plugin "aws" {
   enabled = true
-  version = "0.13.4"
+  version = "0.16.1"
   source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }
